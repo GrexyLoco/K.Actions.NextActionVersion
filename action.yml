@@ -1,0 +1,117 @@
+name: 'Next Action Version'
+description: 'Intelligent version management for GitHub Actions - automatically calculates next semantic version based on conventional commits and Git tags'
+author: 'GrexyLoco'
+
+branding:
+  icon: 'git-branch'
+  color: 'blue'
+
+inputs:
+  repoPath:
+    description: 'Path to repository root (for git operations)'
+    required: false
+    default: '.'
+  branchName:
+    description: 'Current branch name for analysis'
+    required: false
+    default: ${{ github.ref_name }}
+  targetBranch:
+    description: 'Target branch for release analysis (main/master)'
+    required: false
+    default: ''  # Auto-discovery
+  forceFirstRelease:
+    description: 'Force first release even with unusual starting conditions'
+    required: false
+    default: 'false'
+  conventionalCommits:
+    description: 'Enable conventional commits parsing (feat:, fix:, BREAKING CHANGE:)'
+    required: false
+    default: 'true'
+  preReleasePattern:
+    description: 'Branch pattern for pre-release versions (alpha/beta/rc)'
+    required: false
+    default: 'alpha|beta|rc|pre'
+
+outputs:
+  currentVersion:
+    description: 'Current version from latest Git tag'
+    value: ${{ steps.calculate.outputs.currentVersion }}
+  bumpType:
+    description: 'Detected version bump type (major/minor/patch/none)'
+    value: ${{ steps.calculate.outputs.bumpType }}
+  newVersion:
+    description: 'Calculated new semantic version'
+    value: ${{ steps.calculate.outputs.newVersion }}
+  lastReleaseTag:
+    description: 'Last release tag found in repository'
+    value: ${{ steps.calculate.outputs.lastReleaseTag }}
+  targetBranch:
+    description: 'Target branch used for analysis'
+    value: ${{ steps.calculate.outputs.targetBranch }}
+  suffix:
+    description: 'Pre-release suffix (alpha/beta/rc) if applicable'
+    value: ${{ steps.calculate.outputs.suffix }}
+  warning:
+    description: 'Warning message for unusual version conditions'
+    value: ${{ steps.calculate.outputs.warning }}
+  actionRequired:
+    description: 'Whether manual action is required before proceeding'
+    value: ${{ steps.calculate.outputs.actionRequired }}
+  actionInstructions:
+    description: 'Instructions for required manual actions'
+    value: ${{ steps.calculate.outputs.actionInstructions }}
+  isFirstRelease:
+    description: 'Whether this is the first release (no previous tags)'
+    value: ${{ steps.calculate.outputs.isFirstRelease }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Calculate Next Action Version
+      id: calculate
+      shell: pwsh
+      env:
+        REPO_PATH: ${{ inputs.repoPath }}
+        BRANCH_NAME: ${{ inputs.branchName }}
+        TARGET_BRANCH: ${{ inputs.targetBranch }}
+        FORCE_FIRST_RELEASE: ${{ inputs.forceFirstRelease }}
+        CONVENTIONAL_COMMITS: ${{ inputs.conventionalCommits }}
+        PRERELEASE_PATTERN: ${{ inputs.preReleasePattern }}
+      run: |
+        # Import the NextActionVersion module
+        Import-Module "$env:GITHUB_ACTION_PATH/NextActionVersion.psm1" -Force
+        
+        # Calculate next version
+        $result = Get-NextActionVersion `
+          -RepoPath $env:REPO_PATH `
+          -BranchName $env:BRANCH_NAME `
+          -TargetBranch $env:TARGET_BRANCH `
+          -ForceFirstRelease ($env:FORCE_FIRST_RELEASE -eq 'true') `
+          -ConventionalCommits ($env:CONVENTIONAL_COMMITS -eq 'true') `
+          -PreReleasePattern $env:PRERELEASE_PATTERN
+        
+        # Set GitHub Action outputs
+        Write-Output "currentVersion=$($result.CurrentVersion)" >> $env:GITHUB_OUTPUT
+        Write-Output "bumpType=$($result.BumpType)" >> $env:GITHUB_OUTPUT  
+        Write-Output "newVersion=$($result.NewVersion)" >> $env:GITHUB_OUTPUT
+        Write-Output "lastReleaseTag=$($result.LastReleaseTag)" >> $env:GITHUB_OUTPUT
+        Write-Output "targetBranch=$($result.TargetBranch)" >> $env:GITHUB_OUTPUT
+        Write-Output "suffix=$($result.Suffix)" >> $env:GITHUB_OUTPUT
+        Write-Output "warning=$($result.Warning)" >> $env:GITHUB_OUTPUT
+        Write-Output "actionRequired=$($result.ActionRequired)" >> $env:GITHUB_OUTPUT
+        Write-Output "actionInstructions=$($result.ActionInstructions)" >> $env:GITHUB_OUTPUT
+        Write-Output "isFirstRelease=$($result.IsFirstRelease)" >> $env:GITHUB_OUTPUT
+        
+        # Display summary
+        Write-Host "🎯 Next Action Version Analysis Complete!" -ForegroundColor Green
+        Write-Host "Current Version: $($result.CurrentVersion)" -ForegroundColor Cyan
+        Write-Host "Bump Type: $($result.BumpType)" -ForegroundColor Cyan
+        Write-Host "New Version: $($result.NewVersion)" -ForegroundColor Yellow
+        
+        if ($result.Warning) {
+          Write-Host "⚠️ Warning: $($result.Warning)" -ForegroundColor Yellow
+        }
+        
+        if ($result.ActionRequired) {
+          Write-Host "❗ Action Required: $($result.ActionInstructions)" -ForegroundColor Red
+        }
