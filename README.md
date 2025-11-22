@@ -5,12 +5,52 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub release](https://img.shields.io/github/release/GrexyLoco/K.Actions.NextActionVersion.svg)](https://github.com/GrexyLoco/K.Actions.NextActionVersion/releases)
 
+## 🎯 Purpose
+
+**NextActionVersion** calculates semantic versions for **GitHub Actions** based purely on **Git tags and commit analysis**.
+
+### Key Characteristics:
+- ✅ **100% Git tag-based** - no manifest file dependencies
+- ✅ First release defaults to **v1.0.0** when no tags exist
+- ✅ Analyzes commits since latest tag for bump type
+- ✅ Supports conventional commits (`feat:`, `fix:`, `BREAKING CHANGE:`)
+- ✅ Branch pattern analysis (`feature/`, `bugfix/`, `major/`)
+
+### 📚 Compare: K.Actions.NextVersion vs. K.Actions.NextActionVersion
+
+⚠️ **IMPORTANT:** Both actions work identically - they analyze **Git tags only**!
+
+| Feature | **K.Actions.NextVersion** | **K.Actions.NextActionVersion** |
+|---------|---------------------------|----------------------------------|
+| **Primary Use Case** | PowerShell Modules | GitHub Actions |
+| **Version Source** | Git tags only | Git tags only |
+| **First Release Default** | v1.0.0 (if no tags) | v1.0.0 (if no tags) |
+| **PSD1 Reading** | ❌ No (.psd1 not used for versioning) | ❌ No |
+| **Commit Analysis** | ✅ Conventional commits + branch patterns | ✅ Conventional commits + branch patterns |
+| **Pre-Release** | `-alpha`, `-beta`, `-rc` | `-alpha`, `-beta`, `-rc` |
+| **Recommended For** | K.PSGallery.* modules | K.Actions.* repositories |
+
+**The Difference:**
+- **Naming convention only** - helps identify target project type
+- **NextVersion** → Suggested for PowerShell modules (but works for any Git repo)
+- **NextActionVersion** → Suggested for GitHub Actions (but works for any Git repo)
+- **Both read Git tags exclusively** - no manifest parsing
+
+**Example Decision Tree:**
+```
+What type of project?
+├── PowerShell Module → Use K.Actions.NextVersion (convention)
+│   └── Still uses Git tags (not .psd1) for versioning
+└── GitHub Action → Use K.Actions.NextActionVersion (convention)
+    └── Uses Git tags for versioning
+```
+
 ## 🌟 Features
 
-- **🏷️ Git Tag-Based:** Uses Git tags as single source of truth for versioning
+- **🏷️ Git Tag-Based:** Uses Git tags as **single source of truth** (no .psd1 dependency)
 - **📝 Conventional Commits:** Supports conventional commit format (`feat:`, `fix:`, `BREAKING CHANGE:`)
 - **🌿 Branch Analysis:** Analyzes branch patterns (`feature/`, `bugfix/`, `major/`)
-- **🆕 First Release Smart:** Defaults to v1.0.0 for new Actions (no .psd1 dependency)
+- **🆕 First Release Smart:** Defaults to **v1.0.0** for new Actions (GitHub Actions standard)
 - **🎭 Pre-Release Support:** Alpha/beta/rc versions for feature branches
 - **🔧 Auto-Discovery:** Automatically detects main/master branch
 - **⚡ Fast & Lightweight:** Pure PowerShell, no external dependencies
@@ -144,13 +184,21 @@ jobs:
 
 ## 🔄 Differences from K.Actions.NextVersion
 
-| Feature | NextVersion (Modules) | NextActionVersion (Actions) |
-|---------|----------------------|----------------------------|
-| **Source of Truth** | `.psd1` ModuleVersion | Git Tags |
-| **First Release** | Uses .psd1 version | Defaults to v1.0.0 |
-| **Target Use** | PowerShell Modules | GitHub Actions |
-| **Dependencies** | Requires .psd1 file | Pure Git repository |
-| **Version Format** | Module semantic versioning | Action semantic versioning |
+**Truth: Both actions are functionally identical!**
+
+| Aspect | Reality |
+|--------|---------|
+| **Version Source** | Both use **Git tags only** (no .psd1 parsing) |
+| **First Release** | Both default to **v1.0.0** when no tags exist |
+| **Commit Analysis** | Both use conventional commits + branch patterns |
+| **Pre-Release** | Both support `-alpha`, `-beta`, `-rc` suffixes |
+| **Code Logic** | Identical Git tag-based version calculation |
+
+**The Only Difference:**
+- **Naming convention** to indicate intended project type
+- **NextVersion** → Suggested for PowerShell modules
+- **NextActionVersion** → Suggested for GitHub Actions
+- **Both work for any Git repository** - no technical differences
 
 ## 🔧 Local Testing
 

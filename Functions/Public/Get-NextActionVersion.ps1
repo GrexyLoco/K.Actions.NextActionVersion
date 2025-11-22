@@ -72,7 +72,7 @@ function Get-NextActionVersion {
     )
     
     try {
-        Write-Host "🔍 Analyzing Git repository for version calculation..." -ForegroundColor Cyan
+        Write-Verbose "🔍 Analyzing Git repository for version calculation..."
         
         # Change to repository directory
         $originalLocation = Get-Location
@@ -99,7 +99,7 @@ function Get-NextActionVersion {
             }
         }
         
-        Write-Host "📋 Target Branch: $TargetBranch" -ForegroundColor Green
+        Write-Verbose "📋 Target Branch: $TargetBranch"
         
         # Get current branch if not specified
         if ([string]::IsNullOrEmpty($BranchName)) {
@@ -109,14 +109,14 @@ function Get-NextActionVersion {
             }
         }
         
-        Write-Host "🌿 Current Branch: $BranchName" -ForegroundColor Green
+        Write-Verbose "🌿 Current Branch: $BranchName"
         
         # Get latest Git tags
         $latestTag = Get-GitTags | Select-Object -First 1
         $isFirstRelease = $null -eq $latestTag
         
         if ($isFirstRelease) {
-            Write-Host "🆕 First release detected - no previous tags found" -ForegroundColor Yellow
+            Write-Warning "🆕 First release detected - no previous tags found"
             
             $currentVersion = "0.0.0"
             $newVersion = "1.0.0"  # Default first version for Actions
@@ -132,7 +132,7 @@ function Get-NextActionVersion {
             return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType $bumpType -NewVersion $newVersion -LastReleaseTag "" -TargetBranch $TargetBranch -Suffix $suffix -IsFirstRelease $true
         }
         
-        Write-Host "🏷️ Latest tag: $latestTag" -ForegroundColor Green
+        Write-Verbose "🏷️ Latest tag: $latestTag"
         
         # Parse current version from tag
         $currentVersion = $latestTag -replace '^v', ''  # Remove 'v' prefix if present
@@ -141,16 +141,16 @@ function Get-NextActionVersion {
         $commitsSinceTag = Get-CommitsSinceTag -Tag $latestTag
         
         if ($commitsSinceTag.Count -eq 0) {
-            Write-Host "✅ No commits since last tag - no version bump needed" -ForegroundColor Green
+            Write-Verbose "✅ No commits since last tag - no version bump needed"
             return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType "none" -NewVersion $currentVersion -LastReleaseTag $latestTag -TargetBranch $TargetBranch -Suffix "" -IsFirstRelease $false
         }
         
-        Write-Host "📝 Found $($commitsSinceTag.Count) commits since $latestTag" -ForegroundColor Cyan
+        Write-Verbose "📝 Found $($commitsSinceTag.Count) commits since $latestTag"
         
         # Analyze commits for bump type
         $bumpType = Get-BumpTypeFromCommits -Commits $commitsSinceTag -BranchName $BranchName -ConventionalCommits $ConventionalCommits
         
-        Write-Host "⬆️ Detected bump type: $bumpType" -ForegroundColor Yellow
+        Write-Verbose "⬆️ Detected bump type: $bumpType"
         
         # Calculate new version
         $newVersion = Step-SemanticVersion -Version $currentVersion -BumpType $bumpType
@@ -162,12 +162,12 @@ function Get-NextActionVersion {
             $newVersion = "$newVersion-$suffix.1"
         }
         
-        Write-Host "🎯 New version: $newVersion" -ForegroundColor Green
+        Write-Verbose "🎯 New version: $newVersion"
         
         return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType $bumpType -NewVersion $newVersion -LastReleaseTag $latestTag -TargetBranch $TargetBranch -Suffix $suffix -IsFirstRelease $false
         
     } catch {
-        Write-Host "❌ Error calculating version: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Error "❌ Error calculating version: $($_.Exception.Message)"
         return New-ActionVersionResult -CurrentVersion "0.0.0" -BumpType "none" -NewVersion "0.0.0" -LastReleaseTag "" -TargetBranch $TargetBranch -Suffix "" -Warning "Error: $($_.Exception.Message)" -ActionRequired $true -ActionInstructions "Please check repository state and try again" -IsFirstRelease $true
     } finally {
         Set-Location $originalLocation
