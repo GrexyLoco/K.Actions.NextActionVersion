@@ -1,5 +1,13 @@
 # K.Actions.NextActionVersion
 
+<!-- AUTO-GENERATED BADGES - DO NOT EDIT MANUALLY -->
+## 📊 Status
+
+![Quality Gate](https://img.shields.io/badge/Quality_Gate-passing-brightgreen?logo=githubactions) ![Release](https://img.shields.io/badge/Release-none-lightgrey?logo=github) [![CI](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml/badge.svg)](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml)
+
+> 🕐 **Last Updated:** 2025-11-28 01:18:34 UTC | **Action:** `Next Action Version`
+<!-- END AUTO-GENERATED BADGES -->
+
 🚀 **Intelligent version management for GitHub Actions** - automatically calculates next semantic version based on conventional commits and Git tags
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
