@@ -1,0 +1,245 @@
+name: 🚀 GitHub Action Release Pipeline
+
+# 🎯 Triggers
+# - Push to master/main branches (excluding docs)
+# - Manual dispatch with release options
+on:
+  push:
+    branches: [master, main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '📌 Override version (e.g., 1.2.3, leave empty for auto-detection)'
+        required: false
+        type: string
+        default: ''
+      force-release:
+        description: '🔄 Force release even if no changes'
+        required: false
+        default: false
+        type: boolean
+
+# Global permissions for the workflow
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+env:
+  # 🌍 Global Configuration
+  RELEASE_AUTHOR: "github-actions[bot]"
+  RELEASE_EMAIL: "github-actions[bot]@users.noreply.github.com"
+  UBUNTU_VERSION: ${{ vars.UBUNTU_VERSION || 'ubuntu-24.04' }}
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🔐 JOB 1: QUALITY GATE - Security, Structure & Code Quality
+  # ═══════════════════════════════════════════════════════════════════════════
+  quality-gate:
+    name: 🔐 Quality Gate
+    runs-on: ${{ vars.UBUNTU_VERSION || 'ubuntu-24.04' }}
+    outputs:
+      quality-success: ${{ steps.evaluate.outputs.quality-success }}
+      action-name: ${{ steps.discover-action.outputs.action-name }}
+      action-type: ${{ steps.discover-action.outputs.action-type }}
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Discover Action Metadata
+        id: discover-action
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Discover-ActionName.ps1"
+
+      - name: 🔐 GitLeaks Security Scan
+        uses: zricethezav/gitleaks-action@v2.3.9
+        continue-on-error: true
+        id: gitleaks
+
+      - name: 📋 Validate Action Structure
+        id: validate-structure
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Test-ActionStructure.ps1"
+
+      - name: 🎨 Lint PowerShell Scripts
+        id: lint
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Invoke-ScriptAnalyzer.ps1"
+
+      - name: 📊 Evaluate Quality Gate
+        id: evaluate
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Invoke-QualityGateEvaluation.ps1" `
+            -GitLeaksOutcome '${{ steps.gitleaks.outcome }}' `
+            -StructureSuccess '${{ steps.validate-structure.outputs.structure-success }}' `
+            -SchemaSuccess '${{ steps.validate-structure.outputs.schema-success }}' `
+            -LintSuccess '${{ steps.lint.outputs.analysis-success }}' `
+            -ActionName '${{ steps.discover-action.outputs.action-name }}' `
+            -ActionType '${{ steps.discover-action.outputs.action-type }}' `
+            -ScriptsAnalyzed '${{ steps.lint.outputs.scripts-analyzed }}' `
+            -TotalErrors '${{ steps.lint.outputs.total-errors }}' `
+            -TotalWarnings '${{ steps.lint.outputs.total-warnings }}'
+
+      - name: 📋 Quality Gate Summary
+        if: always()
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Write-QualityGateSummary.ps1" `
+            -GitLeaksOutcome '${{ steps.gitleaks.outcome }}' `
+            -StructureSuccess '${{ steps.validate-structure.outputs.structure-success }}' `
+            -SchemaSuccess '${{ steps.validate-structure.outputs.schema-success }}' `
+            -LintSuccess '${{ steps.lint.outputs.analysis-success }}' `
+            -QualitySuccess '${{ steps.evaluate.outputs.quality-success }}' `
+            -ActionName '${{ steps.discover-action.outputs.action-name }}' `
+            -ActionType '${{ steps.discover-action.outputs.action-type }}' `
+            -ScriptsAnalyzed '${{ steps.lint.outputs.scripts-analyzed }}' `
+            -TotalErrors '${{ steps.lint.outputs.total-errors }}' `
+            -TotalWarnings '${{ steps.lint.outputs.total-warnings }}'
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 📦 JOB 2: PREPARE RELEASE - Version Detection
+  # ═══════════════════════════════════════════════════════════════════════════
+  prepare-release:
+    name: 📦 Prepare Release
+    needs: quality-gate
+    runs-on: ${{ vars.UBUNTU_VERSION || 'ubuntu-24.04' }}
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 
+      needs.quality-gate.outputs.quality-success == 'true'
+    outputs:
+      new-version: ${{ steps.determine-version.outputs.final-version }}
+      should-release: ${{ steps.determine-version.outputs.should-release }}
+      bump-type: ${{ steps.determine-version.outputs.bump-type }}
+      current-version: ${{ steps.version.outputs.currentVersion }}
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⬆️ Analyze next version
+        id: version
+        uses: GrexyLoco/K.Actions.NextActionVersion@master
+        with:
+          branchName: ${{ github.ref_name }}
+
+      - name: 🔢 Determine final version
+        id: determine-version
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Determine-Version.ps1" `
+            -ManualVersion '${{ github.event.inputs.version }}' `
+            -AutoBumpType '${{ steps.version.outputs.bumpType }}' `
+            -AutoNewVersion '${{ steps.version.outputs.newVersion }}' `
+            -ForceRelease '${{ github.event.inputs.force-release }}'
+
+      - name: 📋 Prepare Release Summary
+        if: always()
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Write-PrepareReleaseSummary.ps1" `
+            -ShouldRelease '${{ steps.determine-version.outputs.should-release }}' `
+            -FinalVersion '${{ steps.determine-version.outputs.final-version }}' `
+            -BumpType '${{ steps.determine-version.outputs.bump-type }}' `
+            -CurrentVersion '${{ steps.version.outputs.currentVersion }}' `
+            -AutoBumpType '${{ steps.version.outputs.bumpType }}'
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🚀 JOB 3: GITHUB RELEASE - Tag, Smart Tags, Release
+  # ═══════════════════════════════════════════════════════════════════════════
+  github-release:
+    name: 🚀 GitHub Release
+    needs: [quality-gate, prepare-release]
+    if: needs.prepare-release.outputs.should-release == 'true'
+    runs-on: ${{ vars.UBUNTU_VERSION || 'ubuntu-24.04' }}
+    outputs:
+      release-created: ${{ steps.create-release.outputs.release-created }}
+      release-tag: ${{ steps.create-release.outputs.release-tag }}
+      release-url: ${{ steps.create-release.outputs.release-url }}
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # 🚀 Create Complete Release (Draft → Smart Tags → Publish)
+      # ─────────────────────────────────────────────────────────────────────────
+      - name: 🚀 Create GitHub Release
+        id: create-release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          & "./.github/scripts/Create-GitHubRelease.ps1" `
+            -Version '${{ needs.prepare-release.outputs.new-version }}' `
+            -BumpType '${{ needs.prepare-release.outputs.bump-type }}' `
+            -ActionName '${{ needs.quality-gate.outputs.action-name }}' `
+            -Repository '${{ github.repository }}'
+
+      - name: 📋 Release Summary
+        if: always()
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Write-ReleaseSummary.ps1" `
+            -Version '${{ needs.prepare-release.outputs.new-version }}' `
+            -ReleaseUrl '${{ steps.create-release.outputs.release-url }}' `
+            -ReleaseCreated '${{ steps.create-release.outputs.release-created }}' `
+            -TagsCreated '${{ steps.create-release.outputs.tags-created }}' `
+            -ActionName '${{ needs.quality-gate.outputs.action-name }}' `
+            -Repository '${{ github.repository }}'
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 🏷️ JOB 4: UPDATE README BADGES - Always update badges to reflect current status
+  # ═══════════════════════════════════════════════════════════════════════════
+  update-readme-badges:
+    name: 🏷️ Update README Badges
+    needs: [quality-gate, prepare-release, github-release]
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ${{ vars.UBUNTU_VERSION || 'ubuntu-24.04' }}
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Update README Badges
+        id: update-badges
+        shell: pwsh
+        run: |
+          & "./.github/scripts/Update-ReadmeBadges.ps1" `
+            -QualitySuccess '${{ needs.quality-gate.outputs.quality-success }}' `
+            -ReleaseSuccess '${{ needs.github-release.outputs.release-created }}' `
+            -ReleaseVersion '${{ needs.github-release.outputs.release-tag }}' `
+            -ActionName '${{ needs.quality-gate.outputs.action-name }}' `
+            -Repository '${{ github.repository }}'
+
+      - name: 📤 Commit Badge Updates
+        if: steps.update-badges.outputs.badges-updated == 'true'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "${{ env.RELEASE_AUTHOR }}"
+          git config user.email "${{ env.RELEASE_EMAIL }}"
+          
+          $version = '${{ needs.github-release.outputs.release-tag }}'
+          $message = if ($version) { "📛 Update badges for $version" } else { "📛 Update status badges" }
+          
+          git add README.md
+          git commit -m $message
+          git push
+          Write-Host "✅ Badge updates committed and pushed"
