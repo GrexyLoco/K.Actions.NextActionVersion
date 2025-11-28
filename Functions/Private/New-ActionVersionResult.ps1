@@ -21,8 +21,9 @@ function New-ActionVersionResult {
         [Parameter(Mandatory = $true)]
         [string]$NewVersion,
         
-        [Parameter(Mandatory = $true)]
-        [string]$LastReleaseTag,
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string]$LastReleaseTag = "",
         
         [Parameter(Mandatory = $true)]
         [string]$TargetBranch,
