@@ -1,0 +1,142 @@
+name: 🔢 Next Action Version (Reusable Workflow)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 📋 REUSABLE WORKFLOW für Action Version Management
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 🎯 Zweck:
+#   - Automatische Semantic Versioning für GitHub Actions
+#   - Conventional Commits Parsing (feat:, fix:, BREAKING CHANGE:)
+#   - Pre-Release Support (alpha, beta, rc)
+#   - Git Tag-basierte Versionierung
+#
+# 🔒 Private Repository Support:
+#   ✅ Funktioniert MIT private repos in derselben Organization
+#   ✅ KEIN PAT erforderlich (nutzt Standard GITHUB_TOKEN)
+#   ✅ Automatisches Checkout beider Repos (Caller + Action)
+#
+# 📦 Integration:
+#   Caller-Workflow ruft diesen Workflow auf:
+#   
+#   jobs:
+#     version:
+#       uses: GrexyLoco/K.Actions.NextActionVersion/.github/workflows/reusable/next-action-version.yml@v1
+#       with:
+#         repo-path: '.'
+#         conventional-commits: true
+#       secrets:
+#         github-token: ${{ secrets.GITHUB_TOKEN }}
+#
+# 🔧 Technische Details:
+#   - Reusable workflow läuft im CALLER-Repo Context
+#   - Checkt CALLER-Repo aus (für Git History)
+#   - Checkt DIESES Repo aus (für die action.yml)
+#   - Verwendet lokale action.yml (kein Remote-uses nötig)
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_call:
+    inputs:
+      repo-path:
+        description: 'Path to repository root (for git operations)'
+        required: false
+        type: string
+        default: '.'
+      branch-name:
+        description: 'Current branch name for analysis'
+        required: false
+        type: string
+        default: ''
+      target-branch:
+        description: 'Target branch for release analysis (main/master)'
+        required: false
+        type: string
+        default: ''
+      force-first-release:
+        description: 'Force first release even with unusual starting conditions'
+        required: false
+        type: boolean
+        default: false
+      conventional-commits:
+        description: 'Enable conventional commits parsing (feat:, fix:, BREAKING CHANGE:)'
+        required: false
+        type: boolean
+        default: true
+      pre-release-pattern:
+        description: 'Branch pattern for pre-release versions (alpha/beta/rc)'
+        required: false
+        type: string
+        default: 'alpha|beta|rc|pre'
+      runs-on:
+        description: 'Runner to use'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+    
+    secrets:
+      github-token:
+        description: 'GitHub token for repository access'
+        required: true
+    
+    outputs:
+      current-version:
+        description: 'Current version from latest Git tag'
+        value: ${{ jobs.version.outputs.current-version }}
+      bump-type:
+        description: 'Detected version bump type (major/minor/patch/none)'
+        value: ${{ jobs.version.outputs.bump-type }}
+      new-version:
+        description: 'Calculated new semantic version'
+        value: ${{ jobs.version.outputs.new-version }}
+      last-release-tag:
+        description: 'Last release tag found in repository'
+        value: ${{ jobs.version.outputs.last-release-tag }}
+      target-branch:
+        description: 'Target branch used for analysis'
+        value: ${{ jobs.version.outputs.target-branch }}
+
+jobs:
+  version:
+    name: 🔢 Calculate Next Version
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      current-version: ${{ steps.calculate.outputs.currentVersion }}
+      bump-type: ${{ steps.calculate.outputs.bumpType }}
+      new-version: ${{ steps.calculate.outputs.newVersion }}
+      last-release-tag: ${{ steps.calculate.outputs.lastReleaseTag }}
+      target-branch: ${{ steps.calculate.outputs.targetBranch }}
+    
+    steps:
+      # ─────────────────────────────────────────────────────────────────────
+      # 📥 CHECKOUT 1: Caller Repository (für Git History)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📥 Checkout caller repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Volle History für Tag-Analyse
+      
+      # ─────────────────────────────────────────────────────────────────────
+      # 📥 CHECKOUT 2: Action Repository (für action.yml)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📥 Checkout action repository
+        uses: actions/checkout@v6
+        with:
+          repository: GrexyLoco/K.Actions.NextActionVersion
+          token: ${{ secrets.github-token }}
+          path: .github/actions/next-action-version
+      
+      # ─────────────────────────────────────────────────────────────────────
+      # 🔢 RUN: Next Action Version (via lokale action.yml)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🔢 Calculate Next Action Version
+        id: calculate
+        uses: ./.github/actions/next-action-version
+        with:
+          repoPath: ${{ inputs.repo-path }}
+          branchName: ${{ inputs.branch-name || github.ref_name }}
+          targetBranch: ${{ inputs.target-branch }}
+          forceFirstRelease: ${{ inputs.force-first-release }}
+          conventionalCommits: ${{ inputs.conventional-commits }}
+          preReleasePattern: ${{ inputs.pre-release-pattern }}
+
