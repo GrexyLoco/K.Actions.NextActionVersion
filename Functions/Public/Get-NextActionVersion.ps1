@@ -133,15 +133,19 @@ function Get-NextActionVersion {
             Get-ReleaseBranchInfo -BranchName $BranchName
         } else {
             # Fallback if Core.ps1 not loaded
+            $preReleaseType = switch -Regex ($BranchName) {
+                '^release$' { $null }
+                '^(main|master|staging)$' { 'beta' }
+                '^(dev|development)$' { 'alpha' }
+                default { $null }
+            }
+            
             [PSCustomObject]@{
-                IsReleaseBranch = $BranchName -match '^(release|main|master|staging|dev|development)$'
-                PreReleaseType = switch -Regex ($BranchName) {
-                    '^release$' { $null }
-                    '^(main|master|staging)$' { 'beta' }
-                    '^(dev|development)$' { 'alpha' }
-                    default { $null }
-                }
-                BranchName = $BranchName
+                # A release branch is either the stable 'release' branch (no suffix)
+                # or any branch that has a non-null prerelease type.
+                IsReleaseBranch = ($BranchName -eq 'release') -or ($null -ne $preReleaseType)
+                PreReleaseType = $preReleaseType
+                BranchName     = $BranchName
             }
         }
         
