@@ -13,8 +13,9 @@
 
 # Release branch configuration - only these branches can create new versions
 $script:ReleaseBranches = @{
-    # Branch name (exact match) → PreRelease type ($null = stable)
-    'release'     = $null      # Stable release
+    # Branch name (exact match or pattern) → PreRelease type ($null = stable)
+    'release'     = $null      # Stable release (exact match)
+    'release/*'   = $null      # Stable release (pattern match)
     'main'        = 'beta'     # Beta pre-release
     'master'      = 'beta'     # Beta pre-release
     'staging'     = 'beta'     # Beta pre-release
@@ -63,9 +64,10 @@ function Get-ReleaseBranchInfo {
     .DESCRIPTION
         Checks if the given branch name is allowed to create releases.
         Returns the PreRelease type (alpha, beta, or $null for stable).
+        Supports both exact matching and wildcard patterns (e.g., 'release/*').
     
     .PARAMETER BranchName
-        The exact branch name to check.
+        The branch name to check (supports pattern matching).
     
     .OUTPUTS
         PSCustomObject with:
@@ -78,6 +80,10 @@ function Get-ReleaseBranchInfo {
         # Returns: IsReleaseBranch=$true, PreReleaseType='alpha'
     
     .EXAMPLE
+        Get-ReleaseBranchInfo -BranchName 'release/v1.0'
+        # Returns: IsReleaseBranch=$true, PreReleaseType=$null
+    
+    .EXAMPLE
         Get-ReleaseBranchInfo -BranchName 'feature/xyz'
         # Returns: IsReleaseBranch=$false, PreReleaseType=$null
     #>
@@ -88,8 +94,27 @@ function Get-ReleaseBranchInfo {
         [string]$BranchName
     )
     
+    # First try exact match
     $isReleaseBranch = $script:ReleaseBranches.ContainsKey($BranchName)
     $preReleaseType = if ($isReleaseBranch) { $script:ReleaseBranches[$BranchName] } else { $null }
+    
+    # If no exact match, try pattern matching
+    if (-not $isReleaseBranch) {
+        foreach ($pattern in $script:ReleaseBranches.Keys) {
+            if ($pattern -like '*/*' -or $pattern -like '*\*') {
+                # Convert glob pattern to regex pattern
+                # Escape special regex characters except * and /
+                $regexPattern = [regex]::Escape($pattern) -replace '\\\*', '.*'
+                $regexPattern = "^$regexPattern$"
+                
+                if ($BranchName -match $regexPattern) {
+                    $isReleaseBranch = $true
+                    $preReleaseType = $script:ReleaseBranches[$pattern]
+                    break
+                }
+            }
+        }
+    }
     
     [PSCustomObject]@{
         IsReleaseBranch = $isReleaseBranch
