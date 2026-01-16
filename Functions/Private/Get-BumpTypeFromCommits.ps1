@@ -13,7 +13,7 @@ function Get-BumpTypeFromCommits {
         Branch names like 'feature/xyz' don't logically determine version bumps.
         A patch release can come from any branch.
         
-        PATTERNS (identical to NextVersion and NextNetVersion):
+        PATTERNS (identical to NextVersion and NextActionVersion):
         Major: BREAKING, MAJOR, !:, "breaking change" (case-insensitive)
         Minor: FEATURE, MINOR, feat:, feat(, feature:, add:, new: (case-insensitive)
     
