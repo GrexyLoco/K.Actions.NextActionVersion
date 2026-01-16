@@ -65,11 +65,11 @@ function Get-NextActionVersion {
         [bool]$ForceFirstRelease = $false,
         
         [Parameter(Mandatory = $false)]
-        [bool]$ConventionalCommits = $true,
-        
-        [Parameter(Mandatory = $false)]
         [string]$PreReleasePattern = "alpha|beta|rc|pre"
     )
+    
+    # ConventionalCommits is always enabled (hardcoded) - consistent with NextVersion behavior
+    $ConventionalCommits = $true
     
     try {
         Write-Verbose "🔍 Analyzing Git repository for version calculation..."

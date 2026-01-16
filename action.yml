@@ -23,10 +23,6 @@ inputs:
     description: 'Force first release even with unusual starting conditions'
     required: false
     default: 'false'
-  conventionalCommits:
-    description: 'Enable conventional commits parsing (feat:, fix:, BREAKING CHANGE:)'
-    required: false
-    default: 'true'
   preReleasePattern:
     description: 'Branch pattern for pre-release versions (alpha/beta/rc)'
     required: false
@@ -75,19 +71,17 @@ runs:
         BRANCH_NAME: ${{ inputs.branchName }}
         TARGET_BRANCH: ${{ inputs.targetBranch }}
         FORCE_FIRST_RELEASE: ${{ inputs.forceFirstRelease }}
-        CONVENTIONAL_COMMITS: ${{ inputs.conventionalCommits }}
         PRERELEASE_PATTERN: ${{ inputs.preReleasePattern }}
       run: |
         # Import the NextActionVersion module
         Import-Module "$env:GITHUB_ACTION_PATH/NextActionVersion.psm1" -Force
         
-        # Calculate next version
+        # Calculate next version (ConventionalCommits always enabled - hardcoded)
         $result = Get-NextActionVersion `
           -RepoPath $env:REPO_PATH `
           -BranchName $env:BRANCH_NAME `
           -TargetBranch $env:TARGET_BRANCH `
           -ForceFirstRelease ($env:FORCE_FIRST_RELEASE -eq 'true') `
-          -ConventionalCommits ($env:CONVENTIONAL_COMMITS -eq 'true') `
           -PreReleasePattern $env:PRERELEASE_PATTERN
         
         # Set GitHub Action outputs
