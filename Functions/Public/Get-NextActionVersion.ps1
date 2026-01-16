@@ -200,7 +200,18 @@ function Get-NextActionVersion {
             $transition = Get-PreReleaseTransition -CurrentPreRelease $currentPreRelease -TargetPreRelease $targetPreRelease -CurrentVersion $baseVersion
             
             if (-not $transition.IsValid) {
-                return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType "none" -NewVersion $currentVersion -LastReleaseTag $latestTag -TargetBranch $TargetBranch -Suffix "" -Warning $transition.ErrorMessage -ActionRequired $true -ActionInstructions "PreRelease lifecycle violation: Cannot go from $currentPreRelease to $targetPreRelease" -IsFirstRelease $false
+                $violationMessage = "PreRelease lifecycle violation: Cannot go from $currentPreRelease to $targetPreRelease"
+                return New-ActionVersionResult `
+                    -CurrentVersion $currentVersion `
+                    -BumpType "none" `
+                    -NewVersion $currentVersion `
+                    -LastReleaseTag $latestTag `
+                    -TargetBranch $TargetBranch `
+                    -Suffix "" `
+                    -Warning $transition.ErrorMessage `
+                    -ActionRequired $true `
+                    -ActionInstructions $violationMessage `
+                    -IsFirstRelease $false
             }
             
             Write-Verbose "🔄 PreRelease transition: $($transition.Action)"
