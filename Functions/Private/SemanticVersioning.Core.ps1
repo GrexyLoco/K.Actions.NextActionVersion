@@ -102,7 +102,7 @@ function Get-ReleaseBranchInfo {
     if (-not $isReleaseBranch) {
         foreach ($pattern in $script:ReleaseBranches.Keys) {
             # Check if pattern contains wildcard (*)
-            if ($pattern -like '*`**') {
+            if ($pattern.Contains('*')) {
                 # Convert glob pattern to regex pattern
                 # Escape special regex characters, then replace escaped \* with .*
                 $regexPattern = [regex]::Escape($pattern) -replace '\\\*', '.*'
