@@ -511,7 +511,7 @@ function Get-NextVersion {
                         IsFirstRelease    = $false
                         LastTag           = $LastTag
                         BranchName        = $BranchName
-                        ErrorMessage      = 'Keine Commits seit letztem Tag - keine neue Version erforderlich'
+                        ErrorMessage      = 'No commits since last tag - no new version required'
                         ActionRequired    = $false
                     }
                 }
