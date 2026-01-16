@@ -173,12 +173,43 @@ jobs:
 ### **Conventional Commits Support**
 | Commit Format | Bump Type | Example |
 |---------------|-----------|---------|
-| `feat:` | **Minor** | `feat: add new authentication` |
-| `fix:` | **Patch** | `fix: resolve memory leak` |
-| `BREAKING CHANGE:` | **Major** | `feat!: redesign API` |
-| `docs:`, `style:`, `refactor:` | **Patch** | `docs: update README` |
+| `BREAKING`, `MAJOR`, `!:`, `"breaking change"` | **Major** | `BREAKING: Remove deprecated API`, `feat!: redesign API` |
+| `FEATURE`, `MINOR`, `feat:`, `feat(`, `feature:`, `add:`, `new:` | **Minor** | `feat: add authentication`, `FEATURE: New endpoint` |
+| *(default)* | **Patch** | All other commits |
 
-### **Branch Pattern Analysis**
+### **Release Branches (PreRelease-Source)**
+| Branch Pattern | PreRelease | Description |
+|---------------|------------|-------------|
+| `release`, `release/*` | *(none)* | Stable Release |
+| `main`, `master`, `staging` | `beta` | Beta Version |
+| `dev`, `develop`, `development` | `alpha` | Alpha Version |
+| Other | `alpha` | Default: Alpha |
+
+### **PreRelease-Lifecycle**
+PreRelease transitions follow a strict **one-way-street**:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   STABLE    │────▶│    ALPHA    │────▶│    BETA     │
+│  (release)  │     │ (dev/other) │     │   (main)    │
+└─────────────┘     └─────────────┘     └─────────────┘
+      ▲                                        │
+      │                                        │
+      └────────────────────────────────────────┘
+               Only forward allowed!
+```
+
+**Allowed:** `Stable → Alpha → Beta → Stable`  
+**Forbidden:** `Beta → Alpha`, `Stable → Beta` (directly)
+
+### **Build-Number**
+Within a PreRelease series, the build number is automatically incremented:
+
+```
+1.0.0-alpha.1 → 1.0.0-alpha.2 → 1.0.0-alpha.3 → 1.0.0-beta.1 → 1.0.0
+```
+
+### **Branch Pattern Analysis (Legacy)**
 | Branch Pattern | Bump Type | Example |
 |----------------|-----------|---------|
 | `feature/*` | **Minor** | `feature/user-dashboard` |
