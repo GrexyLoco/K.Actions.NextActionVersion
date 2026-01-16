@@ -101,9 +101,10 @@ function Get-ReleaseBranchInfo {
     # If no exact match, try pattern matching
     if (-not $isReleaseBranch) {
         foreach ($pattern in $script:ReleaseBranches.Keys) {
-            if ($pattern -like '*/*' -or $pattern -like '*\*') {
+            # Check if pattern contains wildcard (*)
+            if ($pattern -like '*`**') {
                 # Convert glob pattern to regex pattern
-                # Escape special regex characters except * and /
+                # Escape special regex characters, then replace escaped \* with .*
                 $regexPattern = [regex]::Escape($pattern) -replace '\\\*', '.*'
                 $regexPattern = "^$regexPattern$"
                 
