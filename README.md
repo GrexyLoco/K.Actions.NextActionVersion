@@ -183,7 +183,7 @@ jobs:
 | `release`, `release/*` | *(none)* | Stable Release |
 | `main`, `master`, `staging` | `beta` | Beta Version |
 | `dev`, `develop`, `development` | `alpha` | Alpha Version |
-| Other | `alpha` | Default: Alpha |
+| Other | *(none)* | Not versioned (no pre-release) |
 
 ### **PreRelease-Lifecycle**
 PreRelease transitions follow a strict **one-way-street**:
@@ -191,7 +191,7 @@ PreRelease transitions follow a strict **one-way-street**:
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   STABLE    │────▶│    ALPHA    │────▶│    BETA     │
-│  (release)  │     │ (dev/other) │     │   (main)    │
+│  (release)  │     │    (dev)    │     │   (main)    │
 └─────────────┘     └─────────────┘     └─────────────┘
       ▲                                        │
       │                                        │
