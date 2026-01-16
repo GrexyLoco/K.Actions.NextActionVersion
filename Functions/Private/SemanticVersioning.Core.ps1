@@ -443,7 +443,7 @@ function Get-NextVersion {
             IsFirstRelease    = $false
             LastTag           = $LastTag
             BranchName        = $BranchName
-            ErrorMessage      = "Branch '$BranchName' ist kein Release-Branch. Erlaubt: $($script:ReleaseBranches.Keys -join ', ')"
+            ErrorMessage      = "Branch '$BranchName' is not a release branch. Allowed branches: $($script:ReleaseBranches.Keys -join ', ')"
             ActionRequired    = $false
         }
     }
