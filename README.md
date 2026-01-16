@@ -199,8 +199,8 @@ PreRelease transitions follow a strict **one-way-street**:
                Only forward allowed!
 ```
 
-**Allowed:** `Stable → Alpha → Beta → Stable`  
-**Forbidden:** `Beta → Alpha`, `Stable → Beta` (directly)
+**Allowed:** `Stable → Alpha → Beta → Stable`, `Stable → Beta` (directly)  
+**Forbidden:** `Beta → Alpha`
 
 ### **Build-Number**
 Within a PreRelease series, the build number is automatically incremented:
