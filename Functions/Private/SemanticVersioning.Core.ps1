@@ -253,7 +253,7 @@ function Get-PreReleaseTransition {
         
         return [PSCustomObject]@{
             IsValid      = $false
-            ErrorMessage = "$($targetName.ToUpper()) nach $($currentName.ToUpper()) nicht erlaubt für Version $CurrentVersion"
+            ErrorMessage = "Cannot transition from $($currentName.ToUpper()) to $($targetName.ToUpper()) for version $CurrentVersion"
             Action       = 'error'
         }
     }
