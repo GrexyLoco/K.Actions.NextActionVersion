@@ -188,7 +188,7 @@ function Get-NextActionVersion {
         Write-Verbose "📝 Found $($commitsSinceTag.Count) commits since $latestTag"
         
         # Analyze commits for bump type (unified patterns)
-        $bumpType = Get-BumpTypeFromCommits -Commits $commitsSinceTag -BranchName $BranchName
+        $bumpType = Get-BumpTypeFromCommits -Commits $commitsSinceTag
         
         Write-Verbose "⬆️ Detected bump type: $bumpType"
         
