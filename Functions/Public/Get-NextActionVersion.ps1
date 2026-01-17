@@ -232,7 +232,7 @@ function Get-NextActionVersion {
             switch ($transition.Action) {
                 'continue' {
                     # Same PreRelease phase - check if we need to bump or just increment build
-                    if ($commits.Count -eq 0) {
+                    if ($commitsSinceTag.Count -eq 0) {
                         Write-Verbose "No commits since last tag - no new version required"
                         return New-ActionVersionResult `
                             -CurrentVersion $currentVersion `
