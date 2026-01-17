@@ -13,9 +13,8 @@
 
 # Release branch configuration - only these branches can create new versions
 $script:ReleaseBranches = @{
-    # Branch name (exact match or pattern) → PreRelease type ($null = stable)
-    'release'     = $null      # Stable release (exact match)
-    'release/*'   = $null      # Stable release (pattern match)
+    # Branch name (exact match) → PreRelease type ($null = stable)
+    'release'     = $null      # Stable release
     'main'        = 'beta'     # Beta pre-release
     'master'      = 'beta'     # Beta pre-release
     'staging'     = 'beta'     # Beta pre-release
@@ -64,10 +63,9 @@ function Get-ReleaseBranchInfo {
     .DESCRIPTION
         Checks if the given branch name is allowed to create releases.
         Returns the PreRelease type (alpha, beta, or $null for stable).
-        Supports both exact matching and wildcard patterns (e.g., 'release/*').
     
     .PARAMETER BranchName
-        The branch name to check (supports pattern matching).
+        The exact branch name to check.
     
     .OUTPUTS
         PSCustomObject with:
@@ -80,10 +78,6 @@ function Get-ReleaseBranchInfo {
         # Returns: IsReleaseBranch=$true, PreReleaseType='alpha'
     
     .EXAMPLE
-        Get-ReleaseBranchInfo -BranchName 'release/v1.0'
-        # Returns: IsReleaseBranch=$true, PreReleaseType=$null
-    
-    .EXAMPLE
         Get-ReleaseBranchInfo -BranchName 'feature/xyz'
         # Returns: IsReleaseBranch=$false, PreReleaseType=$null
     #>
@@ -94,28 +88,8 @@ function Get-ReleaseBranchInfo {
         [string]$BranchName
     )
     
-    # First try exact match
     $isReleaseBranch = $script:ReleaseBranches.ContainsKey($BranchName)
     $preReleaseType = if ($isReleaseBranch) { $script:ReleaseBranches[$BranchName] } else { $null }
-    
-    # If no exact match, try pattern matching
-    if (-not $isReleaseBranch) {
-        foreach ($pattern in $script:ReleaseBranches.Keys) {
-            # Check if pattern contains wildcard (*)
-            if ($pattern.Contains('*')) {
-                # Convert glob pattern to regex pattern
-                # Escape special regex characters, then replace escaped \* with .*
-                $regexPattern = [regex]::Escape($pattern) -replace '\\\*', '.*'
-                $regexPattern = "^$regexPattern$"
-                
-                if ($BranchName -match $regexPattern) {
-                    $isReleaseBranch = $true
-                    $preReleaseType = $script:ReleaseBranches[$pattern]
-                    break
-                }
-            }
-        }
-    }
     
     [PSCustomObject]@{
         IsReleaseBranch = $isReleaseBranch
@@ -279,7 +253,7 @@ function Get-PreReleaseTransition {
         
         return [PSCustomObject]@{
             IsValid      = $false
-            ErrorMessage = "Cannot transition from $($currentName.ToUpper()) to $($targetName.ToUpper()) for version $CurrentVersion"
+            ErrorMessage = "$($targetName.ToUpper()) nach $($currentName.ToUpper()) nicht erlaubt für Version $CurrentVersion"
             Action       = 'error'
         }
     }
@@ -469,7 +443,7 @@ function Get-NextVersion {
             IsFirstRelease    = $false
             LastTag           = $LastTag
             BranchName        = $BranchName
-            ErrorMessage      = "Branch '$BranchName' is not a release branch. Allowed branches: $($script:ReleaseBranches.Keys -join ', ')"
+            ErrorMessage      = "Branch '$BranchName' ist kein Release-Branch. Erlaubt: $($script:ReleaseBranches.Keys -join ', ')"
             ActionRequired    = $false
         }
     }
@@ -500,12 +474,15 @@ function Get-NextVersion {
         
         # Step 3: Determine BumpType from commits
         $bumpType = Get-BumpTypeFromCommits -Commits $Commits
+        Write-Verbose "Detected BumpType: $bumpType"
         
         # Step 4: Validate PreRelease transition
         $targetPreRelease = $branchInfo.PreReleaseType
         $transition = Get-PreReleaseTransition -CurrentPreRelease $currentPreRelease -TargetPreRelease $targetPreRelease -CurrentVersion $lastBaseVersion
+        Write-Verbose "PreRelease transition: $($transition.Action) (IsValid: $($transition.IsValid))"
         
         if (-not $transition.IsValid) {
+            Write-Verbose "PreRelease lifecycle violation: $($transition.ErrorMessage)"
             return [PSCustomObject]@{
                 Success           = $false
                 BumpType          = 'none'
@@ -527,6 +504,7 @@ function Get-NextVersion {
                 # Same PreRelease phase - check if we need to bump or just increment build
                 if ($Commits.Count -eq 0) {
                     # No commits, no change needed
+                    Write-Verbose "No commits since last tag - no new version required"
                     return [PSCustomObject]@{
                         Success           = $false
                         BumpType          = 'none'
@@ -546,20 +524,24 @@ function Get-NextVersion {
                 # For PreRelease "continue", we keep the same base version and just increment build number
                 if ([string]::IsNullOrWhiteSpace($targetPreRelease)) {
                     # Stable branch - always bump version
+                    Write-Verbose "Stable branch: Applying bump $bumpType to $lastBaseVersion"
                     $baseVersion = Step-SemanticVersion -Version $lastBaseVersion -BumpType $bumpType
                 }
                 else {
                     # PreRelease branch with "continue" action - keep base version, increment build number
                     # The bump type is tracked but only affects the NEXT stable release
+                    Write-Verbose "PreRelease 'continue': Keeping base version $lastBaseVersion, incrementing build number"
                     $baseVersion = $lastBaseVersion
                 }
             }
             'start' {
                 # Starting new PreRelease from stable
+                Write-Verbose "PreRelease 'start': Starting new PreRelease from stable with bump $bumpType"
                 $baseVersion = Step-SemanticVersion -Version $lastBaseVersion -BumpType $bumpType
             }
             'transition' {
                 # Moving from alpha to beta - same base version, reset build number
+                Write-Verbose "PreRelease 'transition': Moving from $currentPreRelease to $targetPreRelease, keeping base version $lastBaseVersion"
                 $baseVersion = $lastBaseVersion
             }
             'end' {
@@ -567,10 +549,12 @@ function Get-NextVersion {
                 # But if there are bump indicators, apply them
                 if ($bumpType -eq 'patch' -and $Commits.Count -gt 0) {
                     # No explicit bump indicator but there are commits - release current version as stable
+                    Write-Verbose "PreRelease 'end': No explicit bump indicator, releasing $lastBaseVersion as stable"
                     $baseVersion = $lastBaseVersion
                 }
                 else {
                     # Explicit bump indicator - apply it
+                    Write-Verbose "PreRelease 'end': Explicit bump $bumpType, applying to $lastBaseVersion"
                     $baseVersion = Step-SemanticVersion -Version $lastBaseVersion -BumpType $bumpType
                 }
             }
