@@ -6,35 +6,49 @@ function Get-NextActionVersion {
     .DESCRIPTION
         Analyzes Git repository to determine the next semantic version based on:
         - Latest Git tags (v1.0.0, 1.0.0, etc.)
-        - Conventional commits since last tag
-        - Branch patterns and naming conventions
-        - First release detection with default v1.0.0
+        - Conventional commits since last tag (BumpType detection)
+        - Branch-based PreRelease type (release/main/dev)
+        - PreRelease lifecycle validation (Alpha→Beta→Stable)
+        
+        RELEASE BRANCHES (from unified Core.ps1):
+        - release           → stable (no suffix)
+        - main/master/staging → beta
+        - dev/development   → alpha
+        
+        BUMPTYPE PATTERNS (commit-based only):
+        - Major: BREAKING, MAJOR, !:, "breaking change"
+        - Minor: FEATURE, MINOR, feat:, feat(, feature:, add:, new:
+        - Patch: Everything else (default)
+        
+        PRERELEASE LIFECYCLE (one-way street):
+        - Stable → Alpha/Beta (start new series)
+        - Alpha → Beta (transition)
+        - Alpha/Beta → Stable (release)
+        - Beta → Alpha (FORBIDDEN)
     
     .PARAMETER RepoPath
         Path to Git repository root (default: current directory)
     
     .PARAMETER BranchName
-        Current branch name for analysis
+        Current branch name for analysis and PreRelease type detection
     
     .PARAMETER TargetBranch
-        Target branch for releases (main/master, auto-detected if not specified)
+        Target branch for releases (auto-detected if not specified)
     
     .PARAMETER ForceFirstRelease
         Force first release even with unusual starting conditions
     
-    .PARAMETER ConventionalCommits
-        Enable conventional commits parsing (feat:, fix:, BREAKING CHANGE:)
-    
     .PARAMETER PreReleasePattern
-        Pattern for pre-release branch detection (alpha|beta|rc|pre)
+        DEPRECATED: PreRelease is now determined by branch name, not pattern matching.
+        Kept for backward compatibility but ignored.
     
     .EXAMPLE
         Get-NextActionVersion
         # Analyzes current repository and returns next version
     
     .EXAMPLE
-        Get-NextActionVersion -BranchName "feature/new-api" -ConventionalCommits $true
-        # Analyzes feature branch with conventional commits
+        Get-NextActionVersion -BranchName "dev"
+        # Returns alpha pre-release version (dev branch → alpha)
     
     .OUTPUTS
         PSCustomObject with properties:
@@ -43,7 +57,7 @@ function Get-NextActionVersion {
         - NewVersion: Calculated new version
         - LastReleaseTag: Last Git tag found
         - TargetBranch: Target branch used
-        - Suffix: Pre-release suffix
+        - Suffix: Pre-release suffix (alpha/beta or empty)
         - Warning: Any warnings
         - ActionRequired: Whether manual action needed
         - ActionInstructions: Instructions for manual action
@@ -65,11 +79,14 @@ function Get-NextActionVersion {
         [bool]$ForceFirstRelease = $false,
         
         [Parameter(Mandatory = $false)]
-        [bool]$ConventionalCommits = $true,
-        
-        [Parameter(Mandatory = $false)]
-        [string]$PreReleasePattern = "alpha|beta|rc|pre"
+        [string]$PreReleasePattern = "alpha|beta|rc|pre"  # DEPRECATED: Ignored
     )
+    
+    # Load unified Core.ps1 for branch-based PreRelease detection
+    $corePath = Join-Path $PSScriptRoot "..\Private\SemanticVersioning.Core.ps1"
+    if (Test-Path $corePath) {
+        . $corePath
+    }
     
     try {
         Write-Verbose "🔍 Analyzing Git repository for version calculation..."
@@ -111,8 +128,30 @@ function Get-NextActionVersion {
         
         Write-Verbose "🌿 Current Branch: $BranchName"
         
+        # Check if branch is a release branch using unified Core.ps1 logic
+        $branchInfo = if (Get-Command Get-ReleaseBranchInfo -ErrorAction SilentlyContinue) {
+            Get-ReleaseBranchInfo -BranchName $BranchName
+        } else {
+            # Fallback if Core.ps1 not loaded
+            $preReleaseType = switch -Regex ($BranchName) {
+                '^release$' { $null }
+                '^(main|master|staging)$' { 'beta' }
+                '^(dev|development)$' { 'alpha' }
+                default { $null }
+            }
+            
+            [PSCustomObject]@{
+                # A release branch is either the stable 'release' branch (no suffix)
+                # or any branch that has a non-null prerelease type.
+                IsReleaseBranch = ($BranchName -eq 'release') -or ($null -ne $preReleaseType)
+                PreReleaseType = $preReleaseType
+                BranchName     = $BranchName
+            }
+        }
+        
         # Get latest Git tags
         $latestTag = Get-GitTags | Select-Object -First 1
+        $allTags = Get-GitTags
         $isFirstRelease = $null -eq $latestTag
         
         if ($isFirstRelease) {
@@ -122,10 +161,9 @@ function Get-NextActionVersion {
             $newVersion = "1.0.0"  # Default first version for Actions
             $bumpType = "major"
             
-            # Check for pre-release branch
-            $suffix = ""
-            if ($BranchName -match "($PreReleasePattern)") {
-                $suffix = $matches[1]
+            # Apply PreRelease suffix based on branch (unified logic)
+            $suffix = $branchInfo.PreReleaseType
+            if ($suffix) {
                 $newVersion = "1.0.0-$suffix.1"
             }
             
@@ -137,6 +175,12 @@ function Get-NextActionVersion {
         # Parse current version from tag
         $currentVersion = $latestTag -replace '^v', ''  # Remove 'v' prefix if present
         
+        # Extract current PreRelease info from last tag
+        $currentPreRelease = $null
+        if ($currentVersion -match '^[\d\.]+-(alpha|beta)\.?\d*$') {
+            $currentPreRelease = $matches[1]
+        }
+        
         # Get commits since latest tag
         $commitsSinceTag = Get-CommitsSinceTag -Tag $latestTag
         
@@ -147,19 +191,50 @@ function Get-NextActionVersion {
         
         Write-Verbose "📝 Found $($commitsSinceTag.Count) commits since $latestTag"
         
-        # Analyze commits for bump type
-        $bumpType = Get-BumpTypeFromCommits -Commits $commitsSinceTag -BranchName $BranchName -ConventionalCommits $ConventionalCommits
+        # Analyze commits for bump type (unified patterns)
+        $bumpType = Get-BumpTypeFromCommits -Commits $commitsSinceTag
         
         Write-Verbose "⬆️ Detected bump type: $bumpType"
         
-        # Calculate new version
-        $newVersion = Step-SemanticVersion -Version $currentVersion -BumpType $bumpType
+        # Validate PreRelease transition using unified Core.ps1 logic
+        $targetPreRelease = $branchInfo.PreReleaseType
+        $baseVersion = $currentVersion -replace '-.*$', ''  # Remove PreRelease suffix
         
-        # Check for pre-release suffix
-        $suffix = ""
-        if ($BranchName -match "($PreReleasePattern)") {
-            $suffix = $matches[1]
-            $newVersion = "$newVersion-$suffix.1"
+        if (Get-Command Get-PreReleaseTransition -ErrorAction SilentlyContinue) {
+            $transition = Get-PreReleaseTransition -CurrentPreRelease $currentPreRelease -TargetPreRelease $targetPreRelease -CurrentVersion $baseVersion
+            
+            if (-not $transition.IsValid) {
+                $violationMessage = "PreRelease lifecycle violation: Cannot go from $currentPreRelease to $targetPreRelease"
+                return New-ActionVersionResult `
+                    -CurrentVersion $currentVersion `
+                    -BumpType "none" `
+                    -NewVersion $currentVersion `
+                    -LastReleaseTag $latestTag `
+                    -TargetBranch $TargetBranch `
+                    -Suffix "" `
+                    -Warning $transition.ErrorMessage `
+                    -ActionRequired $true `
+                    -ActionInstructions $violationMessage `
+                    -IsFirstRelease $false
+            }
+            
+            Write-Verbose "🔄 PreRelease transition: $($transition.Action)"
+        }
+        
+        # Calculate new version based on transition type
+        $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+        
+        # Apply PreRelease suffix based on branch (unified logic)
+        $suffix = $targetPreRelease
+        if ($suffix) {
+            # Calculate build number for PreRelease
+            $buildNumber = 1
+            if (Get-Command Get-NextBuildNumber -ErrorAction SilentlyContinue) {
+                $buildNumber = Get-NextBuildNumber -BaseVersion $newBaseVersion -PreReleaseType $suffix -ExistingTags $allTags
+            }
+            $newVersion = "$newBaseVersion-$suffix.$buildNumber"
+        } else {
+            $newVersion = $newBaseVersion
         }
         
         Write-Verbose "🎯 New version: $newVersion"

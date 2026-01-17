@@ -11,11 +11,11 @@
 jobs:
   version:
     uses: GrexyLoco/K.Actions.NextActionVersion/.github/workflows/reusable/next-action-version.yml@v1
-    with:
-      conventional-commits: true
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+> **Note:** Conventional commits parsing (`feat:`, `fix:`, `BREAKING CHANGE:`) is always enabled (hardcoded).
 
 ---
 
@@ -37,7 +37,6 @@ Semantic Versioning für **GitHub Actions**:
 | `branch-name` | `github.ref_name` | Current branch name for analysis |
 | `target-branch` | `''` (auto) | Target branch for release analysis (main/master) |
 | `force-first-release` | `false` | Force first release even with unusual starting conditions |
-| `conventional-commits` | `true` | Enable conventional commits parsing |
 | `pre-release-pattern` | `'alpha\|beta\|rc\|pre'` | Branch pattern for pre-release versions |
 | `runs-on` | `'ubuntu-latest'` | Runner for version calculation |
 
@@ -69,7 +68,6 @@ jobs:
     name: 🔢 Semantic Versioning
     uses: GrexyLoco/K.Actions.NextActionVersion/.github/workflows/reusable/next-action-version.yml@v1
     with:
-      conventional-commits: true
       force-first-release: false
       pre-release-pattern: 'alpha|beta|rc|develop'
       target-branch: 'main'

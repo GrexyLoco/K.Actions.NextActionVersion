@@ -71,8 +71,9 @@ What type of project?
 | `branchName` | Current branch name | ❌ | `${{ github.ref_name }}` |
 | `targetBranch` | Target branch for releases | ❌ | Auto-discovery |
 | `forceFirstRelease` | Force first release | ❌ | `false` |
-| `conventionalCommits` | Enable conventional commits | ❌ | `true` |
 | `preReleasePattern` | Pre-release branch pattern | ❌ | `alpha\|beta\|rc\|pre` |
+
+> **Note:** Conventional commits parsing (`feat:`, `fix:`, `BREAKING CHANGE:`) is always enabled (hardcoded).
 
 ## 📊 Outputs
 
@@ -172,12 +173,43 @@ jobs:
 ### **Conventional Commits Support**
 | Commit Format | Bump Type | Example |
 |---------------|-----------|---------|
-| `feat:` | **Minor** | `feat: add new authentication` |
-| `fix:` | **Patch** | `fix: resolve memory leak` |
-| `BREAKING CHANGE:` | **Major** | `feat!: redesign API` |
-| `docs:`, `style:`, `refactor:` | **Patch** | `docs: update README` |
+| `BREAKING`, `MAJOR`, `!:`, `"breaking change"` | **Major** | `BREAKING: Remove deprecated API`, `feat!: redesign API` |
+| `FEATURE`, `MINOR`, `feat:`, `feat(`, `feature:`, `add:`, `new:` | **Minor** | `feat: add authentication`, `FEATURE: New endpoint` |
+| *(default)* | **Patch** | All other commits |
 
-### **Branch Pattern Analysis**
+### **Release Branches (PreRelease-Source)**
+| Branch Pattern | PreRelease | Description |
+|---------------|------------|-------------|
+| `release`, `release/*` | *(none)* | Stable Release |
+| `main`, `master`, `staging` | `beta` | Beta Version |
+| `dev`, `develop`, `development` | `alpha` | Alpha Version |
+| Other | *(none)* | Not versioned (no pre-release) |
+
+### **PreRelease-Lifecycle**
+PreRelease transitions follow a strict **one-way-street**:
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   STABLE    │────▶│    ALPHA    │────▶│    BETA     │
+│  (release)  │     │    (dev)    │     │   (main)    │
+└─────────────┘     └─────────────┘     └─────────────┘
+      ▲                                        │
+      │                                        │
+      └────────────────────────────────────────┘
+               Only forward allowed!
+```
+
+**Allowed:** `Stable → Alpha → Beta → Stable`, `Stable → Beta` (directly)  
+**Forbidden:** `Beta → Alpha`
+
+### **Build-Number**
+Within a PreRelease series, the build number is automatically incremented:
+
+```
+1.0.0-alpha.1 → 1.0.0-alpha.2 → 1.0.0-alpha.3 → 1.0.0-beta.1 → 1.0.0
+```
+
+### **Branch Pattern Analysis (Legacy)**
 | Branch Pattern | Bump Type | Example |
 |----------------|-----------|---------|
 | `feature/*` | **Minor** | `feature/user-dashboard` |
