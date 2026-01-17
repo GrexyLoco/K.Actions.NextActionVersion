@@ -4,19 +4,27 @@ function Get-BumpTypeFromCommits {
         Analyzes commit messages to determine semantic version bump type
     
     .DESCRIPTION
-        Analyzes commit messages and branch name to determine appropriate version bump:
-        - major: Breaking changes (BREAKING CHANGE:, major:, MAJOR:)
-        - minor: New features (feat:, feature:, FEATURE:, feature/ branch)
-        - patch: Bug fixes and other changes (fix:, bugfix:, refactor:, etc.)
+        Analyzes commit messages to determine appropriate version bump:
+        - major: Breaking changes (BREAKING, MAJOR, !:, "breaking change")
+        - minor: New features (FEATURE, MINOR, feat:, feat(, feature:, add:, new:)
+        - patch: Bug fixes and other changes (default)
+        
+        NOTE: Branch-based BumpType detection has been REMOVED for consistency.
+        Branch names like 'feature/xyz' don't logically determine version bumps.
+        A patch release can come from any branch.
+        
+        PATTERNS (identical to NextVersion and NextActionVersion):
+        Major: BREAKING, MAJOR, !:, "breaking change" (case-insensitive)
+        Minor: FEATURE, MINOR, feat:, feat(, feature:, add:, new: (case-insensitive)
     
     .PARAMETER Commits
         Array of commit message strings
     
     .PARAMETER BranchName
-        Current branch name for pattern analysis
+        DEPRECATED: This parameter is ignored. Branch-based BumpType removed.
     
     .PARAMETER ConventionalCommits
-        Whether to parse conventional commit format
+        DEPRECATED: Always true now, kept for backward compatibility
     
     .OUTPUTS
         String: "major", "minor", or "patch"
@@ -24,68 +32,56 @@ function Get-BumpTypeFromCommits {
     
     param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [string[]]$Commits,
         
         [Parameter(Mandatory = $false)]
-        [string]$BranchName = "",
+        [string]$BranchName = "",  # DEPRECATED: Ignored
         
         [Parameter(Mandatory = $false)]
-        [bool]$ConventionalCommits = $true
+        [bool]$ConventionalCommits = $true  # DEPRECATED: Always true
+    )
+    
+    # Unified BumpType patterns (identical to NextVersion Core.ps1)
+    $majorPatterns = @(
+        'BREAKING'           # BREAKING: or BREAKING CHANGE
+        'MAJOR'              # MAJOR: explicit major bump
+        '!:'                 # feat!: breaking feature (conventional commits)
+        'breaking change'    # breaking change in message (case-insensitive)
+    )
+    $minorPatterns = @(
+        'FEATURE'            # FEATURE: new feature
+        'MINOR'              # MINOR: explicit minor bump
+        'feat:'              # feat: conventional commit
+        'feat('              # feat(scope): conventional commit
+        'feature:'           # feature: new feature
+        'add:'               # add: new addition
+        'new:'               # new: new functionality
     )
     
     $highestBump = "patch"  # Default to patch
     
     foreach ($commit in $Commits) {
+        if ([string]::IsNullOrWhiteSpace($commit)) { continue }
+        
         $commitLower = $commit.ToLower()
-        $bumpType = "patch"  # Default for each commit
         
-        if ($ConventionalCommits) {
-            # Check for breaking changes (highest priority)
-            if ($commit -match "BREAKING[\s\-_]?CHANGE|MAJOR[\s:]" -or $commitLower -match "^(major|break)[\s:]") {
-                $bumpType = "major"
-            }
-            # Check for features
-            elseif ($commitLower -match "^(feat|feature)[\s:]") {
-                $bumpType = "minor"
-            }
-            # Check for fixes (already default patch)
-            elseif ($commitLower -match "^(fix|bugfix|patch|hotfix)[\s:]") {
-                $bumpType = "patch"
-            }
-            # Check for other conventional commit types
-            elseif ($commitLower -match "^(docs|style|refactor|test|chore)[\s:]") {
-                $bumpType = "patch"
+        # Check for MAJOR indicators (case-sensitive for uppercase keywords)
+        foreach ($pattern in $majorPatterns) {
+            $patternLower = $pattern.ToLower()
+            if ($commit -match [regex]::Escape($pattern) -or $commitLower -match [regex]::Escape($patternLower)) {
+                return "major"  # Major is highest, return immediately
             }
         }
         
-        # Also check for keywords anywhere in commit (legacy support)
-        if ($commit -match "BREAKING|MAJOR") {
-            $bumpType = "major"
-        } elseif ($commit -match "FEATURE|FEAT|MINOR") {
-            $bumpType = "minor"
-        } elseif ($commit -match "FIX|BUGFIX|PATCH|HOTFIX") {
-            $bumpType = "patch"
+        # Check for MINOR indicators
+        foreach ($pattern in $minorPatterns) {
+            $patternLower = $pattern.ToLower()
+            if ($commit -match [regex]::Escape($pattern) -or $commitLower -match [regex]::Escape($patternLower)) {
+                $highestBump = "minor"  # Continue checking for major
+                break
+            }
         }
-        
-        # Update highest bump type found
-        if ($bumpType -eq "major") {
-            $highestBump = "major"
-        } elseif ($bumpType -eq "minor" -and $highestBump -ne "major") {
-            $highestBump = "minor"
-        }
-    }
-    
-    # Analyze branch name for additional context
-    if (-not [string]::IsNullOrEmpty($BranchName)) {
-        $branchLower = $BranchName.ToLower()
-        
-        # Branch patterns can suggest bump type but don't override explicit commit messages
-        if ($branchLower -match "^(major|breaking)" -and $highestBump -ne "major") {
-            $highestBump = "major"
-        } elseif ($branchLower -match "^(feature|feat)" -and $highestBump -eq "patch") {
-            $highestBump = "minor"
-        }
-        # bugfix/, hotfix/, fix/ branches stay at patch level
     }
     
     return $highestBump

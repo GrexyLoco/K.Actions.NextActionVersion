@@ -58,11 +58,6 @@ on:
         required: false
         type: boolean
         default: false
-      conventional-commits:
-        description: 'Enable conventional commits parsing (feat:, fix:, BREAKING CHANGE:)'
-        required: false
-        type: boolean
-        default: true
       pre-release-pattern:
         description: 'Branch pattern for pre-release versions (alpha/beta/rc)'
         required: false
@@ -137,6 +132,5 @@ jobs:
           branchName: ${{ inputs.branch-name || github.ref_name }}
           targetBranch: ${{ inputs.target-branch }}
           forceFirstRelease: ${{ inputs.force-first-release }}
-          conventionalCommits: ${{ inputs.conventional-commits }}
           preReleasePattern: ${{ inputs.pre-release-pattern }}
 
