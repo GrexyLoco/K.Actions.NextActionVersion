@@ -134,15 +134,20 @@ function Get-BumpTypeFromCommits {
     
     $highestBump = 'patch'  # Default
     
+    Write-Host "🐛 DEBUG Core.ps1 Get-BumpTypeFromCommits: Processing $($Commits.Count) commits" -ForegroundColor Magenta
+    
     foreach ($commit in $Commits) {
         if ([string]::IsNullOrWhiteSpace($commit)) { continue }
         
         $commitLower = $commit.ToLower()
         
+        Write-Host "🐛 DEBUG Core: Checking commit: '$commit'" -ForegroundColor Cyan
+        
         # Check for MAJOR indicators (case-sensitive for uppercase keywords)
         foreach ($pattern in $script:BumpTypePatterns.Major) {
             $patternLower = $pattern.ToLower()
             if ($commit -match [regex]::Escape($pattern) -or $commitLower -match [regex]::Escape($patternLower)) {
+                Write-Host "🐛 DEBUG Core: MAJOR match found with pattern '$pattern'" -ForegroundColor Yellow
                 return 'major'  # Major is highest, return immediately
             }
         }
@@ -151,11 +156,14 @@ function Get-BumpTypeFromCommits {
         foreach ($pattern in $script:BumpTypePatterns.Minor) {
             $patternLower = $pattern.ToLower()
             if ($commit -match [regex]::Escape($pattern) -or $commitLower -match [regex]::Escape($patternLower)) {
+                Write-Host "🐛 DEBUG Core: MINOR match found with pattern '$pattern'" -ForegroundColor Yellow
                 $highestBump = 'minor'  # Continue checking for major
                 break
             }
         }
     }
+    
+    Write-Host "🐛 DEBUG Core: Final bump type = $highestBump" -ForegroundColor Magenta
     
     return $highestBump
 }
