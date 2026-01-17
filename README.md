@@ -71,7 +71,7 @@ What type of project?
 | `branchName` | Current branch name | ❌ | `${{ github.ref_name }}` |
 | `targetBranch` | Target branch for releases | ❌ | Auto-discovery |
 | `forceFirstRelease` | Force first release | ❌ | `false` |
-| `preReleasePattern` | Pre-release branch pattern | ❌ | `alpha\|beta\|rc\|pre` |
+| `preReleasePattern` | (Legacy/Ignored) Pre-release type is now determined by branch name | ❌ | `alpha\|beta\|rc\|pre` |
 
 > **Note:** Conventional commits parsing (`feat:`, `fix:`, `BREAKING CHANGE:`) is always enabled (hardcoded).
 
