@@ -3,9 +3,9 @@
 <!-- AUTO-GENERATED BADGES - DO NOT EDIT MANUALLY -->
 ## 📊 Status
 
-![Quality Gate](https://img.shields.io/badge/Quality_Gate-passing-brightgreen?logo=githubactions) ![Release](https://img.shields.io/badge/Release-none-lightgrey?logo=github) [![CI](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml/badge.svg)](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml)
+![Quality Gate](https://img.shields.io/badge/Quality_Gate-passing-brightgreen?logo=githubactions) ![Release](https://img.shields.io/badge/Release-v1.2.0--beta.2-blue?logo=github) [![CI](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml/badge.svg)](https://github.com/GrexyLoco/K.Actions.NextActionVersion/actions/workflows/release.yml)
 
-> 🕐 **Last Updated:** 2026-01-17 23:40:14 UTC | **Action:** `Next Action Version`
+> 🕐 **Last Updated:** 2026-01-17 23:45:27 UTC | **Action:** `Next Action Version`
 <!-- END AUTO-GENERATED BADGES -->
 
 🚀 **Intelligent version management for GitHub Actions** - automatically calculates next semantic version based on conventional commits and Git tags
