@@ -184,14 +184,6 @@ function Get-NextActionVersion {
         # Get commits since latest tag
         $commitsSinceTag = Get-CommitsSinceTag -Tag $latestTag
         
-        Write-Host "🐛 DEBUG: Tag = '$latestTag'" -ForegroundColor Magenta
-        Write-Host "🐛 DEBUG: Commits Count = $($commitsSinceTag.Count)" -ForegroundColor Magenta
-        Write-Host "🐛 DEBUG: Commits Array Type = $($commitsSinceTag.GetType().FullName)" -ForegroundColor Magenta
-        if ($commitsSinceTag.Count -gt 0) {
-            Write-Host "🐛 DEBUG: First 3 commits:" -ForegroundColor Magenta
-            $commitsSinceTag | Select-Object -First 3 | ForEach-Object { Write-Host "  - $_" -ForegroundColor Cyan }
-        }
-        
         if ($commitsSinceTag.Count -eq 0) {
             Write-Verbose "✅ No commits since last tag - no version bump needed"
             return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType "none" -NewVersion $currentVersion -LastReleaseTag $latestTag -TargetBranch $TargetBranch -Suffix "" -IsFirstRelease $false
