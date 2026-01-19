@@ -219,10 +219,60 @@ function Get-NextActionVersion {
             }
             
             Write-Verbose "🔄 PreRelease transition: $($transition.Action)"
+            
+            # Handle transition action (unified logic from Core.ps1)
+            switch ($transition.Action) {
+                'continue' {
+                    # Same PreRelease phase - check if we need to bump or just increment build
+                    if ($commitsSinceTag.Count -eq 0) {
+                        Write-Verbose "No commits since last tag - no new version required"
+                        return New-ActionVersionResult `
+                            -CurrentVersion $currentVersion `
+                            -BumpType "none" `
+                            -NewVersion $currentVersion `
+                            -LastReleaseTag $latestTag `
+                            -TargetBranch $TargetBranch `
+                            -Suffix $currentPreRelease `
+                            -IsFirstRelease $false
+                    }
+                    
+                    # For stable releases (no PreRelease), always apply the bump
+                    # For PreRelease "continue", we keep the same base version and just increment build number
+                    if ([string]::IsNullOrWhiteSpace($targetPreRelease)) {
+                        # Stable branch - always bump version
+                        $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+                    }
+                    else {
+                        # PreRelease branch with "continue" action - keep base version, increment build number
+                        $newBaseVersion = $baseVersion
+                    }
+                }
+                'start' {
+                    # Starting new PreRelease from stable
+                    $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+                }
+                'transition' {
+                    # Moving from alpha to beta - same base version, reset build number
+                    $newBaseVersion = $baseVersion
+                }
+                'end' {
+                    # Going from PreRelease to stable - SemVer says: may release same version without PreRelease
+                    # But if there are bump indicators, apply them
+                    if ($bumpType -eq 'patch' -and $commits.Count -gt 0) {
+                        # No explicit bump indicator but there are commits - release current version as stable
+                        $newBaseVersion = $baseVersion
+                    }
+                    else {
+                        # Explicit bump indicator - apply it
+                        $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+                    }
+                }
+            }
         }
-        
-        # Calculate new version based on transition type
-        $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+        else {
+            # Fallback if Core.ps1 not available
+            $newBaseVersion = Step-SemanticVersion -Version $baseVersion -BumpType $bumpType
+        }
         
         # Apply PreRelease suffix based on branch (unified logic)
         $suffix = $targetPreRelease
