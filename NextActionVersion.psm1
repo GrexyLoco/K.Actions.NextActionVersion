@@ -8,7 +8,6 @@
 # Import helper functions
 . $PSScriptRoot\Functions\Private\Get-GitTags.ps1
 . $PSScriptRoot\Functions\Private\Get-CommitsSinceTag.ps1
-. $PSScriptRoot\Functions\Private\Get-BumpTypeFromCommits.ps1
 . $PSScriptRoot\Functions\Private\Step-SemanticVersion.ps1
 . $PSScriptRoot\Functions\Private\New-ActionVersionResult.ps1
 . $PSScriptRoot\Functions\Public\Get-NextActionVersion.ps1
