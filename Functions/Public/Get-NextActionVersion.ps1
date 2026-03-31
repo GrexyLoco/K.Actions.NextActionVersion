@@ -164,7 +164,7 @@ function Get-NextActionVersion {
             # Apply PreRelease suffix based on branch (unified logic)
             $suffix = $branchInfo.PreReleaseType
             if ($suffix) {
-                $newVersion = "1.0.0-$suffix.1"
+                $newVersion = "1.0.0-${suffix}1"
             }
             
             return New-ActionVersionResult -CurrentVersion $currentVersion -BumpType $bumpType -NewVersion $newVersion -LastReleaseTag "" -TargetBranch $TargetBranch -Suffix $suffix -IsFirstRelease $true
@@ -282,7 +282,7 @@ function Get-NextActionVersion {
             if (Get-Command Get-NextBuildNumber -ErrorAction SilentlyContinue) {
                 $buildNumber = Get-NextBuildNumber -BaseVersion $newBaseVersion -PreReleaseType $suffix -ExistingTags $allTags
             }
-            $newVersion = "$newBaseVersion-$suffix.$buildNumber"
+            $newVersion = "$newBaseVersion-${suffix}$buildNumber"
         } else {
             $newVersion = $newBaseVersion
         }

@@ -287,7 +287,7 @@ function Get-NextBuildNumber {
         Int32: The next build number (1 if no existing tags found)
     
     .EXAMPLE
-        Get-NextBuildNumber -BaseVersion '1.2.0' -PreReleaseType 'alpha' -ExistingTags @('v1.2.0-alpha.1', 'v1.2.0-alpha.2')
+        Get-NextBuildNumber -BaseVersion '1.2.0' -PreReleaseType 'alpha' -ExistingTags @('v1.2.0-alpha1', 'v1.2.0-alpha2')
         # Returns: 3
     #>
     [CmdletBinding()]
@@ -304,7 +304,7 @@ function Get-NextBuildNumber {
     )
     
     $maxBuildNumber = 0
-    $pattern = "^v?$([regex]::Escape($BaseVersion))-$([regex]::Escape($PreReleaseType))\.(\d+)$"
+    $pattern = "^v?$([regex]::Escape($BaseVersion))-$([regex]::Escape($PreReleaseType))\.?(\d+)$"
     
     foreach ($tag in $ExistingTags) {
         if ($tag -match $pattern) {
@@ -461,7 +461,7 @@ function Get-NextVersion {
         $cleanLastTag = $LastTag -replace '^v', ''
         
         # Extract base version and PreRelease info
-        if ($cleanLastTag -match '^(\d+\.\d+\.\d+)(?:-([a-zA-Z]+)\.(\d+))?$') {
+        if ($cleanLastTag -match '^(\d+\.\d+\.\d+)(?:-([a-zA-Z]+)\.?(\d+))?$') {
             $lastBaseVersion = $matches[1]
             $currentPreRelease = $matches[2]
             $currentBuildNumber = if ($matches[3]) { [int]$matches[3] } else { $null }
@@ -579,7 +579,7 @@ function Get-NextVersion {
             $buildNumber = 1
         }
         
-        $newVersion = "$baseVersion-$targetPreRelease.$buildNumber"
+        $newVersion = "$baseVersion-$targetPreRelease$buildNumber"
     }
     
     return [PSCustomObject]@{

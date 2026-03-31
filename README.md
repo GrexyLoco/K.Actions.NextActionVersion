@@ -159,8 +159,8 @@ jobs:
   with:
     preReleasePattern: "alpha|beta|rc|preview"
     
-# On feature/new-api branch -> 1.3.0-alpha.1
-# On beta/testing branch -> 1.3.0-beta.1
+# On feature/new-api branch -> 1.3.0-alpha1
+# On beta/testing branch -> 1.3.0-beta1
 ```
 
 ## 🧠 Version Calculation Logic
